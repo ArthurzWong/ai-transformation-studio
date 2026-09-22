@@ -39,3 +39,23 @@ Every check below was executed against the running app at http://127.0.0.1:8788 
 ## D. Clean-machine test
 
 Follow only README "Quick start": install Node ≥ 22.5 → `cd ai-transformation-studio` → `npm start` → open `http://127.0.0.1:8788`. No `npm install`, no env vars, no config. Database auto-creates and seeds. (Verified: the running instance was started exactly this way.)
+
+## E. Deployment verification (2026-09-22)
+
+**Refactor → re-verify (local):** post-refactor smoke suite passed — prior data intact (3 runs), create-run returns `{id, run}` envelope, pipeline completes (12 findings / 6 slots / 1 brief), approve succeeds, static assets serve with the updated client.
+
+**Vercel-mode simulation (local, `VERCEL=1 ATS_DATA_DIR=/tmp/...`):** synchronous in-request pipeline completed in 2.4 s; `/tmp` SQLite seeded on cold start. Confirms the serverless code path before deploying.
+
+**Live production deployment — https://ai-transformation-studio.vercel.app:**
+
+| Check | Result |
+|---|---|
+| D1 index served | PASS (24,395 bytes) |
+| D2 app.js served | PASS (22,340 bytes) |
+| D3 GET /api/settings | PASS (demo mode, masks empty) |
+| D4 GET /api/runs (seed on cold start) | PASS — seeded sample present |
+| D5 POST /api/runs (full pipeline in-request) | PASS — awaiting_approval, 12 findings / 6 slots / 1 brief, 3.0 s |
+| D6 GET brief.md | PASS (3,835 bytes, all sections) |
+| D7 POST decision approve | PASS — HTTP 200, status approved, signer persisted, audit rows present (verified via direct call after a test-harness property-access bug produced a false negative) |
+
+**Known deployment limitation (documented in README):** Vercel's serverless filesystem is read-only except per-instance `/tmp`, so the SQLite database is transient there — runs reset on cold starts. The persistent deployment (surviving restarts, full audit retention) is `node server.js` on a long-lived host. Git: commit `683846f` (app) + deployment-verification docs commit; project `ai-transformation-studio` under scope `arthurzwong`.

@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Transformation Studio</title>
+<style>
+  :root{
+    --bg:#0a0e16; --panel:#111827; --panel2:#0d1420; --line:#1f2937; --line2:#2a3648;
+    --text:#e5e7eb; --muted:#94a3b8; --faint:#64748b;
+    --accent:#6366f1; --accent2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,.12), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(34,211,238,.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font:15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height:100vh;
+  }
+  ::selection{background:rgba(99,102,241,.35)}
+  a{color:var(--accent2)}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:14px 22px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:40;background:rgba(10,14,22,.85);backdrop-filter:blur(10px);
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+  .logo .dot{
+    width:26px;height:26px;border-radius:8px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 0 18px rgba(99,102,241,.55);
+  }
+  .logo small{display:block;font-weight:500;color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+  .spacer{flex:1}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+    border:1px solid var(--line2);background:var(--panel2);color:var(--muted);font-size:12.5px;
+  }
+  .chip .led{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+  .chip.live .led{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.demo .led{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+  .chip.run .led{background:var(--accent2);animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  button{font:inherit;color:inherit;cursor:pointer}
+  .btn{
+    border:1px solid var(--line2);background:var(--panel);border-radius:10px;
+    padding:9px 16px;font-weight:600;font-size:14px;transition:.15s;
+  }
+  .btn:hover:not(:disabled){border-color:var(--accent);transform:translateY(-1px)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{
+    background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;
+    box-shadow:0 6px 20px rgba(99,102,241,.35);
+  }
+  .btn.primary:hover:not(:disabled){box-shadow:0 8px 26px rgba(99,102,241,.5)}
+  .btn.ghost{background:transparent}
+  .btn.danger{border-color:rgba(248,113,113,.4);color:var(--err)}
+  .btn.ok{border-color:rgba(52,211,153,.4);color:var(--ok)}
+  .btn:focus-visible, .field :focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:264px 1fr;gap:20px;padding:20px 22px 60px;max-width:1500px;margin:0 auto}
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr}
+    .rail{position:static;flex-direction:row!important;overflow-x:auto}
+    .rail .node{min-width:170px}
+    .rail .branchrow{flex-direction:row}
+  }
+
+  /* ---------- rail (pipeline map) ---------- */
+  .rail{
+    position:sticky;top:76px;align-self:start;
+    display:flex;flex-direction:column;gap:0;
+    background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;
+  }
+  .rail h3{margin:0 0 12px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint)}
+  .node{
+    position:relative;display:flex;align-items:flex-start;gap:10px;padding:9px 8px;border-radius:10px;
+    border:1px solid transparent;transition:.2s;cursor:pointer;
+  }
+  .node:hover{border-color:var(--line2);background:rgba(99,102,241,.06)}
+  .node .st{
+    width:20px;height:20px;border-radius:50%;flex:0 0 auto;margin-top:1px;
+    border:2px solid var(--faint);display:grid;place-items:center;font-size:10px;color:#0a0e16;font-weight:800;transition:.2s;
+  }
+  .node .lbl{font-size:13px;font-weight:600;line-height:1.3}
+  .node .sub{font-size:11px;color:var(--faint)}
+  .node[data-state="done"] .st{background:var(--ok);border-color:var(--ok)}
+  .node[data-state="active"]{border-color:rgba(99,102,241,.5);background:rgba(99,102,241,.1)}
+  .node[data-state="active"] .st{border-color:var(--accent);animation:pulse 1.2s infinite;box-shadow:0 0 10px rgba(99,102,241,.6)}
+  .node[data-state="locked"]{opacity:.45}
+  .conn{width:2px;height:14px;background:var(--line2);margin-left:17px}
+  .branches{display:flex;gap:8px;margin:2px 0 2px 8px}
+  .branches .bline{flex:1;height:2px;background:var(--line2);margin-top:11px}
+  .hubnode{border:1px dashed var(--line2);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:12px;color:var(--muted);text-align:center}
+
+  /* ---------- panels ---------- */
+  main{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;transition:.25s;scroll-margin-top:86px;
+  }
+  .panel.locked{opacity:.45}
+  .panel.active{border-color:rgba(99,102,241,.55);box-shadow:0 0 0 1px rgba(99,102,241,.25), 0 10px 40px rgba(99,102,241,.12)}
+  .panel h2{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:10px}
+  .panel h2 .n{
+    width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:12px;font-weight:800;color:#0a0e16;flex:0 0 auto;
+  }
+  .panel .desc{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .field textarea,.field input,.field select{
+    width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;
+    color:var(--text);padding:10px 12px;font:inherit;resize:vertical;
+  }
+  .field textarea{min-height:84px}
+  .field input:focus,.field textarea:focus{border-color:var(--accent)}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:700px){.frow{grid-template-columns:1fr}}
+  .err-msg{color:var(--err);font-size:13px;margin-top:8px;display:none}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+  .presets button{
+    font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px dashed var(--line2);
+    background:transparent;color:var(--muted);transition:.15s;
+  }
+  .presets button:hover{border-color:var(--accent);color:var(--text)}
+
+  /* console */
+  .console{
+    background:#060a12;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    font:12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    max-height:260px;overflow-y:auto;white-space:pre-wrap;color:#a5b4cf;
+  }
+  .console .t{color:#3d4a63;margin-right:8px}
+  .console .ok{color:var(--ok)} .console .warn{color:var(--warn)} .console .err{color:var(--err)} .console .hl{color:var(--accent2)}
+  .plan-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .plan-chips .pc{
+    font-size:12px;padding:6px 12px;border-radius:8px;background:rgba(99,102,241,.12);
+    border:1px solid rgba(99,102,241,.35);color:#c7d2fe;
+  }
+
+  /* tracks */
+  .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:1100px){.tracks{grid-template-columns:1fr}}
+  .track{
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;
+  }
+  .track .thead{display:flex;align-items:center;gap:9px}
+  .track .ticon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.35)}
+  .track .tname{font-weight:700;font-size:14px}
+  .track .trole{font-size:11px;color:var(--faint)}
+  .pill{
+    margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.4px;
+    border:1px solid var(--line2);color:var(--faint);text-transform:uppercase;
+  }
+  .pill.wait{color:var(--faint)}
+  .pill.run{color:var(--accent2);border-color:rgba(34,211,238,.4);animation:pulse 1.2s infinite}
+  .pill.done{color:var(--ok);border-color:rgba(52,211,153,.4)}
+  .pill.err{color:var(--err);border-color:rgba(248,113,113,.4)}
+  .bar{height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s}
+  .findings{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:13px;color:#cbd5e1}
+  .findings li{padding-left:16px;position:relative}
+  .findings li::before{content:"▸";position:absolute;left:0;color:var(--accent2)}
+  .findings li.err::before{content:"×";color:var(--err)}
+  .demobadge{
+    align-self:flex-start;font-size:10px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:5px;
+    background:rgba(251,191,36,.12);color:var(--warn);border:1px solid rgba(251,191,36,.35);
+  }
+
+  /* model hub */
+  .hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .cat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .cat h4{margin:0 0 10px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .cat h4 .ci{font-size:15px}
+  .model{
+    display:flex;align-items:flex-start;gap:9px;padding:8px 9px;border-radius:9px;border:1px solid transparent;cursor:pointer;transition:.15s;
+  }
+  .model:hover{background:rgba(99,102,241,.08);border-color:var(--line2)}
+  .model input{margin-top:3px;accent-color:var(--accent)}
+  .model .mid{font-size:12.5px;font-weight:600;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+  .model .mdesc{font-size:11px;color:var(--faint)}
+  .model .use{
+    margin-left:auto;font-size:9.5px;font-weight:800;letter-spacing:.8px;padding:2px 7px;border-radius:5px;flex:0 0 auto;
+    background:rgba(52,211,153,.12);color:var(--ok);border:1px solid rgba(52,211,153,.35);
+  }
+
+  /* brief */
+  .brief-doc{
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:26px 30px;max-height:640px;overflow-y:auto;
+  }
+  .brief-doc h1,.brief-doc h2,.brief-doc h3{line-height:1.3}
+  .brief-doc h1{font-size:20px;margin:0 0 4px}
+  .brief-doc h2{font-size:15.5px;margin:22px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .brief-doc h3{font-size:13.5px;margin:14px 0 6px;color:#c7d2fe}
+  .brief-doc p{font-size:13.5px;color:#cbd5e1;margin:8px 0}
+  .brief-doc ul{margin:6px 0;padding-left:20px}
+  .brief-doc li{font-size:13.5px;color:#cbd5e1;margin:4px 0}
+  .brief-doc table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12.5px}
+  .brief-doc th,.brief-doc td{border:1px solid var(--line2);padding:6px 10px;text-align:left}
+  .brief-doc th{background:rgba(99,102,241,.1);color:#c7d2fe}
+  .brief-meta{font-size:12px;color:var(--faint);margin-bottom:18px;display:flex;gap:14px;flex-wrap:wrap}
+  .brief-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .stamp{
+    display:none;align-items:center;gap:10px;margin-top:16px;padding:12px 16px;border-radius:12px;
+    border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.08);color:var(--ok);font-weight:700;
+  }
+  .stamp.show{display:flex}
+  .stamp.rejected{border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.08);color:var(--err)}
+  .stamp .big{font-size:20px}
+
+  /* approval */
+  .approval-actions{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 16px}
+  .audit{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .audit li{
+    font-size:12.5px;color:var(--muted);padding:8px 12px;border:1px solid var(--line);
+    border-radius:9px;background:var(--panel2);display:flex;gap:10px;flex-wrap:wrap;
+  }
+  .audit .at{font-family:ui-monospace,Menlo,monospace;color:var(--faint);font-size:11.5px}
+  .audit .who{color:var(--accent2);font-weight:700}
+  .fb-wrap{display:none;margin-bottom:14px}
+  .fb-wrap.show{display:block}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(4,7,12,.7);backdrop-filter:blur(4px);
+    display:none;place-items:center;z-index:100;padding:20px;
+  }
+  .overlay.show{display:grid}
+  .modal{
+    width:min(560px,100%);background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:24px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+  }
+  .modal h3{margin:0 0 4px}
+  .modal p.hint{font-size:12.5px;color:var(--muted);margin:4px 0 16px}
+  .modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+  .key-note{font-size:11.5px;color:var(--faint);margin-top:10px;line-height:1.6}
+  .radio-row{display:flex;gap:16px;margin-bottom:14px}
+  .radio-row label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
+  .radio-row input{accent-color:var(--accent)}
+
+  footer{padding:18px 22px 30px;color:var(--faint);font-size:12px;text-align:center}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--panel);border:1px solid var(--accent);color:var(--text);
+    padding:10px 18px;border-radius:10px;font-size:13px;z-index:200;opacity:0;transition:.3s;pointer-events:none;
+    box-shadow:0 10px 40px rgba(0,0,0,.5);
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="dot"></div>
+    <div>AI Transformation Studio<small>Orchestrated by Grok · Powered by ModelScope</small></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="chip demo" id="modeChip"><span class="led"></span><span id="modeLabel">Demo mode</span></div>
+  <div class="chip" id="runChip"><span class="led"></span><span id="runLabel">Idle</span></div>
+  <button class="btn ghost" id="btnSettings">⚙ Settings</button>
+  <button class="btn ghost" id="btnReset">↺ New run</button>
+</header>
+
+<div class="layout">
+
+  <!-- ======= pipeline rail ======= -->
+  <aside class="rail" aria-label="Pipeline map">
+    <h3>Pipeline</h3>
+
+    <div class="node" data-stage="strategist" data-state="active">
+      <div class="st">1</div>
+      <div><div class="lbl">Human Strategist</div><div class="sub">Goal · context · criteria</div></div>
+    </div>
+    <div class="conn"></div>
+
+    <div class="node" data-stage="orchestrator" data-state="locked">
+      <div class="st">2</div>
+      <div><div class="lbl">Grok Bot</div><div class="sub">Orchestrator · dispatch</div></div>
+    </div>
+    <div class="conn"></div>
+
+    <div class="branches"><div class="bline"></div><div class="bline"></div><div class="bline"></div></div>
+
+    <div class="node" data-stage="tracks" data-state="locked">
+      <div class="st">3</div>
+      <div><div class="lbl">Research Tracks</div><div class="sub">Web · Files · Business logic</div></div>
+    </div>
+    <div class="conn"></div>
+
+    <div class="hubnode">▼</div>
+
+    <div class="node" data-stage="models" data-state="locked">
+      <div class="st">4</div>
+      <div><div class="lbl">ModelScope</div><div class="sub">Model hub selection</div></div>
+    </div>
+    <div class="conn"></div>
+
+    <div class="node" data-stage="brief" data-state="locked">
+      <div class="st">5</div>
+      <div><div class="lbl">Transformation Brief</div><div class="sub">AI opportunity dossier</div></div>
+    </div>
+    <div class="conn"></div>
+
+    <div class="node" data-stage="approval" data-state="locked">
+      <div class="st">6</div>
+      <div><div class="lbl">Human Approval</div><div class="sub">Sign-off gate</div></div>
+    </div>
+  </aside>
+
+  <!-- ======= main ======= -->
+  <main>
+
+    <!-- 1. strategist -->
+    <section class="panel active" id="p-strategist">
+      <h2><span class="n">1</span> Human Strategist</h2>
+      <p class="desc">Define the transformation goal. Everything downstream is orchestrated from this intent.</p>
+
+      <div class="presets" aria-label="Example briefs">
+        <button data-preset="invoice">📐 Invoice processing automation</button>
+        <button data-preset="support">🎧 Customer support copilot</button>
+        <button data-preset="field">🔧 Field-ops knowledge assistant</button>
+      </div>
+
+      <div class="field">
+        <label for="fGoal">Transformation goal *</label>
+        <textarea id="fGoal" placeholder="e.g. Automate accounts-payable invoice handling to cut processing time by 60% and eliminate manual data entry errors."></textarea>
+      </div>
+      <div class="frow">
+        <div class="field">
+          <label for="fIndustry">Industry / context</label>
+          <input id="fIndustry" placeholder="e.g. Manufacturing, 800 employees, EU operations">
+        </div>
+        <div class="field">
+          <label for="fConstraints">Constraints</label>
+          <input id="fConstraints" placeholder="e.g. On-prem preferred, data stays in-region, 6-month budget">
+        </div>
+      </div>
+      <div class="field">
+        <label for="fCriteria">Success criteria</label>
+        <input id="fCriteria" placeholder="e.g. Cost per invoice &lt; $1.20, &gt;99% field accuracy, go-live in one quarter">
+      </div>
+      <div class="err-msg" id="goalErr">A transformation goal is required before the pipeline can run.</div>
+      <button class="btn primary" id="btnRun">▶ Run pipeline</button>
+    </section>
+
+    <!-- 2. orchestrator -->
+    <section class="panel locked" id="p-orchestrator">
+      <h2><span class="n">2</span> Grok Bot — Orchestrator</h2>
+      <p class="desc">Decomposes the strategist intent, dispatches the three research tracks, and arbitrates model selection.</p>
+      <div class="console" id="orchConsole" aria-live="polite"></div>
+      <div class="plan-chips" id="planChips"></div>
+    </section>
+
+    <!-- 3. tracks -->
+    <section class="panel locked" id="p-tracks">
+      <h2><span class="n">3</span> Research Tracks <span class="pill wait" id="tracksPill">pending</span></h2>
+      <p class="desc">Three workers run in parallel and report findings back to the orchestrator.</p>
+      <div class="tracks">
+        <div class="track" id="track-web">
+          <div class="thead"><div class="ticon">🌐</div><div><div class="tname">Web Research</div><div class="trole">Market · tools · benchmarks</div></div><span class="pill wait">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+        <div class="track" id="track-files">
+          <div class="thead"><div class="ticon">📁</div><div><div class="tname">Files</div><div class="trole">Documents · data · extraction</div></div><span class="pill wait">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+        <div class="track" id="track-business">
+          <div class="thead"><div class="ticon">🧭</div><div><div class="tname">Business Logic</div><div class="trole">Process · ROI · risks</div></div><span class="pill wait">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. modelscope -->
+    <section class="panel locked" id="p-models">
+      <h2><span class="n">4</span> ModelScope — Model Hub</h2>
+      <p class="desc">The orchestrator pre-selects models per track (marked <b style="color:var(--ok)">IN USE</b>). Override any slot, then recompile the brief.</p>
+      <div class="hub" id="hubGrid"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="btnRecompile">🔁 Recompile brief with selections</button>
+      </div>
+    </section>
+
+    <!-- 5. brief -->
+    <section class="panel locked" id="p-brief">
+      <h2><span class="n">5</span> AI Transformation Brief</h2>
+      <p class="desc">Consolidated dossier: opportunity map, model stack, roadmap, risks, KPIs — routed to human approval.</p>
+      <div class="brief-doc" id="briefDoc"></div>
+      <div class="brief-actions">
+        <button class="btn" id="btnCopy">⧉ Copy markdown</button>
+        <button class="btn" id="btnDownload">⬇ Download .md</button>
+      </div>
+      <div class="stamp" id="briefStamp"><span class="big">✓</span><span id="briefStampText">Approved</span></div>
+    </section>
+
+    <!-- 6. approval -->
+    <section class="panel locked" id="p-approval">
+      <h2><span class="n">6</span> Human Approval</h2>
+      <p class="desc">The pipeline stops here until a human decides. Nothing ships without sign-off.</p>
+      <div class="fb-wrap" id="fbWrap">
+        <div class="field">
+          <label for="fFeedback">Reviewer feedback</label>
+          <textarea id="fFeedback" placeholder="What should the orchestrator change before the next revision?"></textarea>
+        </div>
+        <button class="btn primary" id="btnSubmitFeedback" style="margin-bottom:16px">↩ Send to orchestrator for revision</button>
+      </div>
+      <div class="approval-actions">
+        <button class="btn ok" id="btnApprove">✓ Approve brief</button>
+        <button class="btn" id="btnChanges">↩ Request changes</button>
+        <button class="btn danger" id="btnReject">✕ Reject</button>
+      </div>
+      <div class="field" id="signWrap" style="display:none;max-width:320px">
+        <label for="fSigner">Sign-off name</label>
+        <input id="fSigner" placeholder="Your name">
+        <button class="btn primary" id="btnSign" style="margin-top:10px">🖊 Sign &amp; close run</button>
+      </div>
+      <h3 style="font-size:13px;color:var(--muted);margin:18px 0 10px">Audit trail</h3>
+      <ul class="audit" id="auditList"></ul>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  AI Transformation Studio · pipeline spec: Human Strategist → Grok orchestrator → Web / Files / Business logic → ModelScope hub → Brief → Human approval · Demo data is simulated; connect APIs in Settings for live results.
+</footer>
+
+<!-- settings modal -->
+<div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="modal">
+    <h3>⚙ Settings</h3>
+    <p class="hint">Keys are stored only in this browser (localStorage) and sent directly to the provider endpoints you configure. Demo mode needs no keys.</p>
+
+    <div class="radio-row" role="radiogroup" aria-label="Run mode">
+      <label><input type="radio" name="mode" value="demo"> Demo mode (simulated)</label>
+      <label><input type="radio" name="mode" value="live"> Live mode (API calls)</label>
+    </div>
+
+    <div class="field">
+      <label for="sGrokKey">xAI (Grok) API key</label>
+      <input id="sGrokKey" type="password" placeholder="xai-...">
+    </div>
+    <div class="field">
+      <label for="sGrokModel">Grok model id</label>
+      <input id="sGrokModel" placeholder="grok-4-fast">
+    </div>
+    <div class="field">
+      <label for="sMsToken">ModelScope API token</label>
+      <input id="sMsToken" type="password" placeholder="ms-...">
+    </div>
+    <div class="field">
+      <label for="sMsModel">ModelScope default chat model</label>
+      <input id="sMsModel" placeholder="Qwen/Qwen2.5-72B-Instruct">
+    </div>
+
+    <p class="key-note">
+      Note: browsers may be blocked by provider CORS policy. If live calls fail with a network/CORS error, run a local relay
+      (e.g. <code>proxy.py</code> from the project folder) and point the endpoint fields at it. See README.
+    </p>
+    <div class="actions">
+      <button class="btn ghost" id="btnSettingsCancel">Cancel</button>
+      <button class="btn primary" id="btnSettingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   AI Transformation Studio
+   Pipeline: Human Strategist → Grok Orchestrator → (Web | Files | Business)
+             → ModelScope hub → Brief → Human Approval
+   ===================================================================== */
+
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const nowT  = () => new Date().toLocaleTimeString([], {hour12:false});
+const esc   = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+const STAGES = ["strategist","orchestrator","tracks","models","brief","approval"];
+
+/* ---------------- state ---------------- */
+const state = {
+  stage: "strategist",
+  running: false,
+  mode: "demo",
+  briefMD: "",
+  results: null,           // {web:[], files:[], business:[]}
+  modelsInUse: {},         // slotKey -> modelId
+  decisions: [],           // audit trail
+  revision: 1,
+  approved: false,
+  rejected: false,
+};
+
+/* ---------------- settings ---------------- */
+const DEFAULT_SETTINGS = {
+  mode: "demo",
+  grokKey: "",
+  grokModel: "grok-4-fast",
+  grokBase: "https://api.x.ai/v1",
+  msToken: "",
+  msModel: "Qwen/Qwen2.5-72B-Instruct",
+  msBase: "https://api-inference.modelscope.cn/v1",
+};
+let settings = loadSettings();
+function loadSettings(){
+  try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem("ats-settings")||"{}")); }
+  catch(e){ return Object.assign({}, DEFAULT_SETTINGS); }
+}
+function saveSettings(){
+  localStorage.setItem("ats-settings", JSON.stringify(settings));
+  applyModeChip();
+}
+function applyModeChip(){
+  const chip = $("#modeChip");
+  chip.classList.toggle("demo", state.mode!=="live" || !(settings.grokKey||settings.msToken));
+  chip.classList.toggle("live", state.mode==="live" && !!(settings.grokKey||settings.msToken));
+  $("#modeLabel").textContent = (state.mode==="live" && (settings.grokKey||settings.msToken)) ? "Live mode" : "Demo mode";
+}
+
+/* ---------------- model catalog (illustrative — edit freely) ---------------- */
+const CATALOG = [
+  { key:"llm", icon:"🧠", label:"LLM / NLP", models:[
+    {id:"Qwen/Qwen2.5-72B-Instruct",    desc:"General reasoning, drafting, summarization"},
+    {id:"deepseek-ai/DeepSeek-V3",      desc:"Strong analytical reasoning, long context"},
+    {id:"Qwen/Qwen2.5-14B-Instruct",    desc:"Cost-efficient workhorse for high volume"},
+  ]},
+  { key:"speech", icon:"🎙", label:"Speech", models:[
+    {id:"iic/SenseVoiceSmall",          desc:"Multilingual ASR with emotion/event tags"},
+    {id:"iic/speech_paraformer-large",  desc:"High-accuracy Chinese/English transcription"},
+    {id:"iic/CosyVoice2-0.5B",          desc:"Natural TTS voice generation"},
+  ]},
+  { key:"vision", icon:"👁", label:"Vision", models:[
+    {id:"Qwen/Qwen2-VL-7B-Instruct",    desc:"Document & chart understanding"},
+    {id:"PaddlePaddle/PaddleOCR",       desc:"Production OCR for scans and receipts"},
+    {id:"IDEA-Research/GroundingDINO",  desc:"Open-vocabulary object detection"},
+  ]},
+  { key:"multimodal", icon:"🧩", label:"Multimodal", models:[
+    {id:"Qwen/Qwen2-VL-72B-Instruct",   desc:"Image+text reasoning over mixed documents"},
+    {id:"OpenGVLab/InternVL2-8B",       desc:"Balanced multimodal understanding"},
+  ]},
+  { key:"embed", icon:"🧲", label:"Embedding / Specialist", models:[
+    {id:"BAAI/bge-large-zh-v1.5",       desc:"Retrieval embeddings for knowledge bases"},
+    {id:"BAAI/bge-reranker-large",      desc:"Second-stage reranking for RAG"},
+    {id:"iic/nlp_gte_sentence-embedding_chinese-large", desc:"Sentence embeddings, clustering"},
+  ]},
+];
+
+/* track → default model slots */
+const SLOTS = {
+  web:      [{cat:"llm", idx:0, role:"Summarize & synthesize sources"}, {cat:"embed", idx:0, role:"Retrieve & rank evidence"}],
+  files:    [{cat:"multimodal", idx:0, role:"Parse mixed-format documents"}, {cat:"vision", idx:1, role:"OCR scanned pages"}],
+  business: [{cat:"llm", idx:1, role:"Process analysis & ROI modeling"}, {cat:"llm", idx:2, role:"High-volume drafting at low cost"}],
+};
+
+function autoAssignModels(){
+  state.modelsInUse = {};
+  Object.entries(SLOTS).forEach(([track, slots])=>{
+    slots.forEach((s,i)=>{
+      state.modelsInUse[`${track}:${i}`] = CATALOG.find(c=>c.key===s.cat).models[s.idx].id;
+    });
+  });
+}
+
+/* ---------------- stage manager ---------------- */
+function setStage(name){
+  state.stage = name;
+  const cur = STAGES.indexOf(name);
+  $$(".rail .node").forEach(n=>{
+    const idx = STAGES.indexOf(n.dataset.stage);
+    n.dataset.state = idx < cur ? "done" : idx === cur ? "active" : "locked";
+    n.querySelector(".st").textContent = idx < cur ? "✓" : String(idx+1);
+  });
+  STAGES.forEach((s,i)=>{
+    const p = $("#p-"+s);
+    p.classList.toggle("locked", i > cur);
+    p.classList.toggle("active", i === cur);
+  });
+  const run = state.running;
+  $("#runChip").classList.toggle("run", run);
+  $("#runLabel").textContent = run ? "Running…" : ({strategist:"Idle", approval:"Awaiting decision"})[name] || "Stage: "+name;
+}
+$$(".rail .node").forEach(n=>{
+  n.addEventListener("click", ()=> $("#p-"+n.dataset.stage).scrollIntoView({behavior:"smooth", block:"start"}));
+});
+
+/* ---------------- toast ---------------- */
+let toastTimer;
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+/* ---------------- orchestrator console ---------------- */
+function olog(text, cls=""){
+  const c = $("#orchConsole");
+  c.innerHTML += `<span class="t">${nowT()}</span><span class="${cls}">${esc(text)}</span>\n`;
+  c.scrollTop = c.scrollHeight;
+}
+
+/* ---------------- strategist inputs ---------------- */
+const PRESETS = {
+  invoice: {
+    goal:"Automate accounts-payable invoice handling end-to-end: ingest supplier invoices in any format, extract and validate line items against purchase orders, route exceptions to humans, and post approved entries to the ERP — cutting processing time by 60% and eliminating manual keying errors.",
+    industry:"Mid-size manufacturing company, ~800 employees, EU operations, mixed PDF/email/EDI invoice channels",
+    constraints:"Invoice data must stay in-region (GDPR); human review mandatory above €10k; must integrate with existing SAP; 6-month budget envelope",
+    criteria:"Cost per invoice < €1.20 · straight-through rate > 70% · field-level accuracy > 99% · go-live within one quarter"
+  },
+  support: {
+    goal:"Deploy a customer-support copilot that drafts replies from the knowledge base and past tickets, auto-tags and prioritizes inbound requests, and escalates sensitive cases — reducing first-response time by half without degrading CSAT.",
+    industry:"B2B SaaS company, ~12k monthly tickets, 3 languages (EN/DE/JP)",
+    constraints:"No customer PII sent to models without DPA in place; tone must match brand voice; support team of 25 keeps final send authority",
+    criteria:"First-response time −50% · copilot-accepted draft rate > 60% · CSAT stable or better · full audit log of AI suggestions"
+  },
+  field: {
+    goal:"Give field-service technicians a mobile knowledge assistant that answers repair questions from manuals and historical work orders, reads equipment nameplate photos to identify the machine, and pre-fills service reports via voice.",
+    industry:"Industrial equipment service provider, 350 technicians, 5 countries",
+    constraints:"Works offline-first in low-connectivity sites; manuals are legacy scanned PDFs; bilingual terminology (EN/local)",
+    criteria:"Mean time-to-repair −20% · report completion time −40% · ≥90% correct machine identification from nameplate photos"
+  }
+};
+$$(".presets button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const p = PRESETS[b.dataset.preset];
+    $("#fGoal").value = p.goal; $("#fIndustry").value = p.industry;
+    $("#fConstraints").value = p.constraints; $("#fCriteria").value = p.criteria;
+    $("#goalErr").style.display = "none";
+  });
+});
+
+/* =====================================================================
+   DEMO CONTENT GENERATORS
+   Simulated but goal-aware: seeds findings from the strategist input.
+   ===================================================================== */
+function kw(){
+  const g = $("#fGoal").value.trim();
+  const stop = new Set(["the","and","for","with","that","from","into","this","must","using","our","their","have","been","will","should","without","those","these","than","then","over","such","also","more","most","when","where","which","while","about","after","before","between","during","through","under","above","each","every","both","all","any","can","are","was","were","has","had","not","but","its","it's"]);
+  const words = g.toLowerCase().replace(/[^a-z0-9\s-]/g," ").split(/\s+/).filter(w=>w.length>3 && !stop.has(w));
+  return words.slice(0,8);
+}
+function industryLabel(){
+  const v = $("#fIndustry").value.trim();
+  return v ? v.split(/[,.]/)[0] : "the organization";
+}
+
+function demoWebFindings(){
+  const k = kw(); const t0 = k[0]||"workflow"; const t1 = k[1]||"operations";
+  return [
+    `Market scan: comparable AI deployments targeting “${t0} ${t1}” report 30–45% cycle-time reduction in published case studies (sample).`,
+    `Tooling landscape: 3 viable build paths identified — managed platform, ModelScope-hosted open models, and hybrid RAG stack (sample).`,
+    `Benchmark snapshot: document-centric pipelines reach >97% extraction accuracy with vision-language models + OCR fallback (sample).`,
+    `Adoption pattern: leaders pair automation with a human-review gate for exceptions rather than full autonomy (sample).`,
+    `Risk signal: unmanaged model sprawl and missing audit trails are the top two causes of stalled rollouts (sample).`
+  ];
+}
+function demoFilesFindings(){
+  const k = kw(); const t0 = k[0]||"process";
+  return [
+    `Indexed 12 sample artifacts (PDF/DOCX/XLSX): SOPs, ${t0} forms, spreadsheets, and correspondence (demo corpus).`,
+    `Extracted 3 high-value schemas: form header/line items, approval rules, and step-by-step procedures (demo).`,
+    `Data quality: 2 fields with >15% missing values and 1 inconsistent date format flagged for cleansing (demo).`,
+    `Access map: documents span 4 repositories; unified ingestion layer recommended before model deployment (demo).`
+  ];
+}
+function demoBusinessFindings(){
+  const k = kw(); const t0 = k[0]||"process";
+  return [
+    `Process map: 7-step ${t0} flow documented; steps 2 (manual entry), 4 (validation), 6 (routing) absorb ~65% of handling time (sample).`,
+    `Automation candidates: data entry + validation = highest ROI; routing benefits from rules + LLM hybrid (sample).`,
+    `ROI estimate (12-month): labor savings 2.8 FTE-equivalents, error-cost reduction ~35%, payback in 4–7 months (sample).`,
+    `Change risk: medium — affected roles need redefinition toward exception handling and QA; training plan included (sample).`
+  ];
+}
+
+/* =====================================================================
+   LIVE API HELPERS (OpenAI-compatible endpoints)
+   ===================================================================== */
+async function callLLM({base, key, model, system, user, maxTokens=1200}){
+  const res = await fetch(base.replace(/\/$/,"") + "/chat/completions", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
+    body: JSON.stringify({
+      model, max_tokens: maxTokens, temperature: 0.4,
+      messages: [{role:"system", content: system}, {role:"user", content: user}]
+    })
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=> "");
+    throw new Error(`HTTP ${res.status} — ${t.slice(0,180)}`);
+  }
+  const data = await res.json();
+  const txt = data.choices?.[0]?.message?.content;
+  if(!txt) throw new Error("Empty completion");
+  return txt.trim();
+}
+function liveEnabled(){ return state.mode==="live" && !!(settings.grokKey || settings.msToken); }
+const ctxPack = () => ({
+  goal: $("#fGoal").value.trim(),
+  industry: $("#fIndustry").value.trim() || "unspecified",
+  constraints: $("#fConstraints").value.trim() || "none stated",
+  criteria: $("#fCriteria").value.trim() || "not specified",
+});
+
+/* =====================================================================
+   PIPELINE
+   ===================================================================== */
+async function runPipeline(){
+  if(state.running) return;
+  const goal = $("#fGoal").value.trim();
+  if(!goal){ $("#goalErr").style.display="block"; $("#fGoal").focus(); return; }
+  $("#goalErr").style.display="none";
+
+  // reset downstream state
+  state.running = true; state.approved=false; state.rejected=false; state.revision=1;
+  state.decisions = [];
+  renderAudit();
+  $("#briefStamp").className = "stamp";
+  $("#signWrap").style.display = "none";
+  $("#fbWrap").classList.remove("show");
+  autoAssignModels(); renderHub();
+
+  const ctx = ctxPack();
+  resetTracks();
+
+  /* --- stage 2: orchestrator --- */
+  setStage("orchestrator");
+  $("#orchConsole").innerHTML = ""; $("#planChips").innerHTML = "";
+  olog(`Grok orchestrator online (${liveEnabled()?"LIVE":"DEMO"} mode)`, "hl");
+  olog(`Intent received: "${goal.slice(0,90)}${goal.length>90?"…":""}"`);
+  olog(`Context: industry=${ctx.industry.slice(0,40)} · constraints=${ctx.constraints.slice(0,40)}`);
+
+  let plan = null;
+  if(liveEnabled() && settings.grokKey){
+    try{
+      olog("Dispatching planning call to Grok…");
+      const raw = await callLLM({
+        base: settings.grokBase, key: settings.grokKey, model: settings.grokModel,
+        system: `You are the Grok orchestrator of an AI transformation studio. Given a strategist brief, output STRICT JSON only: {"plan_summary":"one sentence","web":["finding1","finding2","finding3","finding4"],"files":["finding1","finding2","finding3","finding4"],"business":["finding1","finding2","finding3","finding4"]} — each array has exactly 4 concise, concrete findings.`,
+        user: `Goal: ${ctx.goal}\nIndustry: ${ctx.industry}\nConstraints: ${ctx.constraints}\nSuccess criteria: ${ctx.criteria}`
+      }, );
+      plan = JSON.parse(raw.replace(/^```json\s*|```$/g,"").trim());
+      olog("Grok plan received ✔", "ok");
+    }catch(e){
+      olog(`Grok call failed: ${e.message}`, "err");
+      olog("Falling back to simulated plan.", "warn");
+    }
+  }
+  if(!plan){
+    olog("Composing dispatch plan…", "hl");
+    await sleep(500);
+    olog("→ Track[web]      : market scan, tooling landscape, benchmarks", "ok");
+    olog("→ Track[files]    : corpus indexing, schema extraction, data quality", "ok");
+    olog("→ Track[business] : process mapping, automation candidates, ROI", "ok");
+    await sleep(400);
+    plan = { plan_summary:"Decompose intent into 3 parallel research tracks, then compile brief.",
+             web: demoWebFindings(), files: demoFilesFindings(), business: demoBusinessFindings() };
+  }
+  $("#planChips").innerHTML =
+    `<span class="pc">Plan: ${esc(plan.plan_summary||"3-track dispatch")}</span>`+
+    `<span class="pc">🌐 web · 4 findings</span><span class="pc">📁 files · 4 findings</span><span class="pc">🧭 business · 4 findings</span>`;
+  olog("Dispatched. Tracks running in parallel…", "hl");
+
+  /* --- stage 3: parallel tracks --- */
+  setStage("tracks");
+  const trackDefs = [
+    {key:"web",      label:"Web Research", findings: plan.web},
+    {key:"files",    label:"Files",        findings: plan.files},
+    {key:"business", label:"Business Logic", findings: plan.business},
+  ];
+  state.results = {web:[], files:[], business:[]};
+
+  const runTrack = async (def) => {
+    const card = $("#track-"+def.key);
+    const pill = card.querySelector(".pill");
+    const bar  = card.querySelector(".bar i");
+    const list = card.querySelector(".findings");
+    pill.className = "pill run"; pill.textContent = "running";
+    card.querySelector(".demobadge")?.remove();
+    if(!liveEnabled() || def.key!=="business"){
+      const b = document.createElement("span"); b.className="demobadge"; b.textContent="DEMO DATA";
+      card.querySelector(".thead").after(b);
+    }
+    // live files/web also simulated unless tokens present; business uses ms model
+    if(liveEnabled() && settings.msToken){
+      try{
+        const out = await callLLM({
+          base: settings.msBase, key: settings.msToken, model: settings.msModel,
+          system: `You are the "${def.label}" research worker. Produce exactly 4 concise bullet findings (max 160 chars each) as a JSON array of strings.`,
+          user: `Goal: ${ctx.goal}\nIndustry: ${ctx.industry}\nConstraints: ${ctx.constraints}`
+        }, );
+        const arr = JSON.parse(out.replace(/^```json\s*|```$/g,"").trim());
+        if(Array.isArray(arr) && arr.length) def.findings = arr.slice(0,4).map(String);
+      }catch(e){ def.err = e.message; }
+    }
+    for(let i=0;i<def.findings.length;i++){
+      await sleep(320 + Math.random()*380);
+      bar.style.width = Math.round(((i+1)/def.findings.length)*100) + "%";
+      const li = document.createElement("li");
+      li.textContent = def.findings[i];
+      list.appendChild(li);
+      state.results[def.key] = state.results[def.key] || [];
+      state.results[def.key].push(def.findings[i]);
+    }
+    if(def.err){
+      pill.className="pill err"; pill.textContent="error";
+      const li=document.createElement("li"); li.className="err"; li.textContent="API error — simulated findings shown instead.";
+      list.appendChild(li);
+    }else{
+      pill.className="pill done"; pill.textContent="done";
+    }
+    olog(`Track[${def.key}] complete (${def.findings.length} findings)`, def.err?"warn":"ok");
+  };
+  await Promise.all(trackDefs.map(runTrack));
+  $("#tracksPill").className = "pill done"; $("#tracksPill").textContent = "3/3 complete";
+
+  /* --- stage 4: model hub --- */
+  setStage("models");
+  olog("Arbitrating ModelScope selections…", "hl");
+  autoAssignModels(); renderHub();
+  await sleep(400);
+
+  /* --- stage 5: brief --- */
+  await compileBrief("initial");
+
+  state.running = false;
+  setStage("approval");
+}
+
+function resetTracks(){
+  ["web","files","business"].forEach(k=>{
+    const card = $("#track-"+k);
+    card.querySelector(".pill").className="pill wait";
+    card.querySelector(".pill").textContent="queued";
+    card.querySelector(".bar i").style.width="0";
+    card.querySelector(".findings").innerHTML="";
+    card.querySelector(".demobadge")?.remove();
+  });
+  $("#tracksPill").className="pill wait"; $("#tracksPill").textContent="pending";
+}
+
+/* ---------------- model hub render ---------------- */
+function renderHub(){
+  const grid = $("#hubGrid"); grid.innerHTML = "";
+  CATALOG.forEach(cat=>{
+    const usedSlots = Object.entries(state.modelsInUse).filter(([,id])=> cat.models.some(m=>m.id===id));
+    const usedIds = new Set(usedSlots.map(([,id])=>id));
+    const el = document.createElement("div"); el.className="cat";
+    el.innerHTML = `<h4><span class="ci">${cat.icon}</span>${esc(cat.label)}</h4>`;
+    cat.models.forEach((m,i)=>{
+      const row = document.createElement("label"); row.className="model";
+      row.innerHTML =
+        `<input type="radio" name="cat-${cat.key}" data-cat="${cat.key}" data-idx="${i}" ${usedIds.has(m.id)?"checked":""}>`+
+        `<span><span class="mid">${esc(m.id)}</span><br><span class="mdesc">${esc(m.desc)}</span></span>`+
+        (usedIds.has(m.id) ? `<span class="use">IN USE</span>` : "");
+      row.querySelector("input").addEventListener("change", ()=> reassignSlot(cat.key, i));
+      el.appendChild(row);
+    });
+    grid.appendChild(el);
+  });
+}
+function reassignSlot(catKey, idx){
+  const modelId = CATALOG.find(c=>c.key===catKey).models[idx].id;
+  // replace the first slot that used a model from this category
+  const entry = Object.entries(SLOTS).find(([t,slots])=> slots.some(s=>s.cat===catKey));
+  if(entry){
+    const [track, slots] = entry;
+    const si = slots.findIndex(s=>s.cat===catKey);
+    state.modelsInUse[`${track}:${si}`] = modelId;
+    toast(`ModelScope slot re-assigned → ${modelId}`);
+    renderHub();
+  }
+}
+
+/* ---------------- brief ---------------- */
+function briefMarkdown(note){
+  const ctx = ctxPack();
+  const r = state.results || {web:[],files:[],business:[]};
+  const bl = a => a.map(x=>`- ${x}`).join("\n");
+  const used = Object.entries(state.modelsInUse).map(([slot,id])=>{
+    const [t,i] = slot.split(":");
+    const role = SLOTS[t][Number(i)].role;
+    return `| ${t} | ${id} | ${role} |`;
+  }).join("\n");
+
+  return `# AI Transformation Brief${state.revision>1?` (rev ${state.revision})`:""}
+
+**Goal:** ${ctx.goal}
+**Industry / context:** ${ctx.industry}
+**Constraints:** ${ctx.constraints}
+**Success criteria:** ${ctx.criteria}
+**Generated:** ${new Date().toLocaleString()} · **Mode:** ${state.mode.toUpperCase()} · **Orchestrator:** Grok Bot · **Model hub:** ModelScope
+
+## 1. Executive Summary
+${note || ""}Based on three parallel research tracks, the recommended approach is a staged AI rollout with a human-in-the-loop approval gate: start with a bounded pilot on the highest-ROI process segment, prove accuracy against the stated success criteria, then scale. The model stack runs on ModelScope-hosted open models, orchestrated by Grok.
+
+## 2. Current-State Assessment
+${ctx.industry==="unspecified" ? "- Context not specified; findings below are generalized." : `- Context: ${ctx.industry}.`}
+- Constraints acknowledged: ${ctx.constraints}.
+- Baseline to capture before pilot: cycle time, error rate, cost per transaction, and exception volume.
+
+## 3. AI Opportunity Map
+### Web Research
+${bl(r.web)}
+### Files & Data
+${bl(r.files)}
+### Business Logic
+${bl(r.business)}
+
+## 4. Recommended Model Stack (ModelScope)
+| Track | Model | Role |
+|---|---|---|
+${used}
+
+## 5. Implementation Roadmap
+| Phase | Window | Focus | Exit criteria |
+|---|---|---|---|
+| Pilot | 0–3 mo | Narrowest high-ROI slice; evaluation harness; human review UI | Meets success criteria on sample volume |
+| Scale | 3–9 mo | Widen coverage, integrate systems of record, add monitoring | ≥70% straight-through on in-scope volume |
+| Institutionalize | 9–18 mo | Model refresh cycle, governance, team enablement | Operated by business team with SLAs |
+
+## 6. Risks & Mitigations
+- Data quality gaps → cleansing pass before pilot; schema validation on ingestion.
+- Accuracy drift → golden-set evaluation on every model/prompt change; alerting on thresholds.
+- Compliance & privacy → in-region processing, DPA review, redaction pipeline for PII.
+- Change resistance → role redefinition toward exception handling; early champion involvement.
+
+## 7. KPIs & Success Criteria
+${bl(ctx.criteria.split(/\s*·\s*|\n/).filter(Boolean))}
+
+## 8. Approval & Sign-off
+${state.approved ? `**APPROVED** by ${state.signer||"Human Strategist"} at ${state.approvedAt}.` : "⏳ Pending human approval — pipeline is halted at the sign-off gate."}
+`;
+}
+
+function mdToHtml(md){
+  const lines = md.split("\n"); const out = []; let inList=false, inTable=false;
+  const inline = s => esc(s)
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/`([^`]+)`/g,"<code>$1</code>");
+  const closeList = ()=>{ if(inList){ out.push("</ul>"); inList=false; } };
+  const closeTable = ()=>{ if(inTable){ out.push("</tbody></table>"); inTable=false; } };
+  lines.forEach((ln,i)=>{
+    const t = ln.trim();
+    if(/^#{1,3}\s/.test(t)){
+      closeList(); closeTable();
+      const lvl = t.match(/^#+/)[0].length;
+      out.push(`<h${lvl+1}>${inline(t.replace(/^#+\s*/,""))}</h${lvl+1}>`);
+    } else if(/^- /.test(t)){
+      closeTable();
+      if(!inList){ out.push("<ul>"); inList=true; }
+      out.push(`<li>${inline(t.slice(2))}</li>`);
+    } else if(/^\|/.test(t)){
+      closeList();
+      const cells = t.split("|").slice(1,-1).map(c=>c.trim());
+      if(/^[\s|:-]+$/.test(t)) return;
+      if(!inTable){ out.push('<table><tbody>'); inTable=true; }
+      out.push(`<tr>${cells.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`);
+    } else if(t==="---" || t===""){
+      closeList(); closeTable();
+    } else {
+      closeList(); closeTable();
+      out.push(`<p>${inline(t)}</p>`);
+    }
+  });
+  closeList(); closeTable();
+  return out.join("\n");
+}
+
+async function compileBrief(note){
+  setStage("brief");
+  const ologBackup = null;
+  // live brief generation if possible
+  if(liveEnabled() && settings.grokKey && state.results){
+    try{
+      const ctx = ctxPack();
+      const md = await callLLM({
+        base: settings.grokBase, key: settings.grokKey, model: settings.grokModel, maxTokens: 2200,
+        system: `You compile an "AI Transformation Brief" in markdown with EXACTLY these sections in order: # AI Transformation Brief, then ## 1. Executive Summary, ## 2. Current-State Assessment, ## 3. AI Opportunity Map (### Web Research, ### Files & Data, ### Business Logic), ## 4. Recommended Model Stack (markdown table), ## 5. Implementation Roadmap (markdown table), ## 6. Risks & Mitigations, ## 7. KPIs & Success Criteria, ## 8. Approval & Sign-off. Be concrete and quantitative. No preamble.`,
+        user: `Strategist goal: ${ctx.goal}\nIndustry: ${ctx.industry}\nConstraints: ${ctx.constraints}\nSuccess criteria: ${ctx.criteria}\n\nTrack findings:\nWeb: ${JSON.stringify(state.results.web)}\nFiles: ${JSON.stringify(state.results.files)}\nBusiness: ${JSON.stringify(state.results.business)}\nModel stack in use: ${JSON.stringify(state.modelsInUse)}\n${note?`Reviewer note to incorporate: ${note}`:""}`
+      });
+      state.briefMD = md;
+    }catch(e){
+      olog(`Brief generation via Grok failed: ${e.message} — using template.`, "err");
+      state.briefMD = briefMarkdown(note ? `Revision note: ${note}. ` : "");
+    }
+  }else{
+    await sleep(600);
+    state.briefMD = briefMarkdown(note ? `Revision note: ${note}. ` : "");
+  }
+  $("#briefDoc").innerHTML = mdToHtml(state.briefMD);
+  $("#briefDoc").scrollTop = 0;
+}
+
+/* ---------------- approval ---------------- */
+function renderAudit(){
+  const ul = $("#auditList");
+  ul.innerHTML = state.decisions.map(d=>
+    `<li><span class="at">${esc(d.t)}</span><span class="who">${esc(d.who)}</span><span>${esc(d.action)}</span></li>`
+  ).join("") || `<li><span class="at">${nowT()}</span><span class="who">system</span><span>Audit trail initialized — awaiting strategist run.</span></li>`;
+}
+function audit(action, who="Human Strategist"){
+  state.decisions.push({t: nowT(), who, action});
+  renderAudit();
+}
+
+$("#btnRun").addEventListener("click", runPipeline);
+
+$("#btnRecompile").addEventListener("click", async ()=>{
+  if(state.running) return;
+  state.running = true;
+  audit("Model selections changed — brief recompiled", "Human Strategist");
+  await compileBrief();
+  state.running = false;
+  setStage("approval");
+  toast("Brief recompiled with your model selections");
+});
+
+$("#btnApprove").addEventListener("click", ()=>{
+  audit("Brief approved — routed to sign-off");
+  $("#signWrap").style.display = "block";
+  $("#fSigner").focus();
+});
+$("#btnSign").addEventListener("click", ()=>{
+  const name = $("#fSigner").value.trim() || "Human Strategist";
+  state.approved = true; state.approvedAt = new Date().toLocaleString(); state.signer = name;
+  state.briefMD = briefMarkdown();
+  $("#briefDoc").innerHTML = mdToHtml(state.briefMD);
+  const st = $("#briefStamp"); st.className = "stamp show"; $("#briefStampText").textContent = `APPROVED — signed by ${name}`;
+  audit(`Signed off by ${name} — run closed`);
+  ["#btnApprove","#btnChanges","#btnReject"].forEach(s=>$(s).disabled = true);
+  toast("Run approved and closed ✓");
+});
+$("#btnChanges").addEventListener("click", ()=>{
+  $("#fbWrap").classList.add("show");
+  $("#fFeedback").focus();
+});
+$("#btnSubmitFeedback").addEventListener("click", async ()=>{
+  const fb = $("#fFeedback").value.trim();
+  if(!fb){ toast("Add feedback text first"); return; }
+  state.revision++;
+  audit(`Revision requested (rev ${state.revision}): "${fb.slice(0,80)}${fb.length>80?"…":""}"`);
+  $("#fbWrap").classList.remove("show");
+  $("#fFeedback").value = "";
+  state.running = true; setStage("orchestrator");
+  olog(`Revision request received (rev ${state.revision}): re-dispatching tracks with feedback.`, "warn");
+  await sleep(600);
+  // quick re-run with feedback folded into results
+  state.results.web.push(`Reviewer directive applied: ${fb}`);
+  state.results.business.push(`Adjustment per strategist feedback (rev ${state.revision}).`);
+  setStage("tracks");
+  resetTracks();
+  const put = (key, items)=>{
+    const card = $("#track-"+key), pill = card.querySelector(".pill"), bar = card.querySelector(".bar i"), list = card.querySelector(".findings");
+    pill.className="pill run"; pill.textContent="running";
+    (async()=>{ for(const it of items){ await sleep(420); bar.style.width=(Math.min(100,parseFloat(bar.style.width||"0")+25))+"%"; const li=document.createElement("li"); li.textContent=it; list.appendChild(li); state.results[key].push(it);} pill.className="pill done"; pill.textContent="done"; })();
+  };
+  await Promise.all([
+    put("web",[...state.results.web.slice(-1)]),
+    put("files",[`Scope narrowed per feedback (rev ${state.revision}).`]),
+    put("business",[...state.results.business.slice(-1)]),
+  ]);
+  await sleep(700);
+  setStage("models");
+  await compileBrief(fb);
+  state.running = false;
+  setStage("approval");
+  $("#briefStamp").className = "stamp";
+  ["#btnApprove","#btnChanges","#btnReject"].forEach(s=>$(s).disabled = false);
+  toast(`Brief revised (rev ${state.revision})`);
+});
+$("#btnReject").addEventListener("click", ()=>{
+  state.rejected = true;
+  const st = $("#briefStamp"); st.className = "stamp show rejected"; $("#briefStampText").textContent = "REJECTED — run archived";
+  state.briefMD = briefMarkdown();
+  $("#briefDoc").innerHTML = mdToHtml(state.briefMD);
+  audit("Brief rejected — pipeline halted, run archived");
+  ["#btnApprove","#btnChanges","#btnReject"].forEach(s=>$(s).disabled = true);
+  toast("Run rejected and archived");
+});
+
+/* ---------------- export ---------------- */
+$("#btnCopy").addEventListener("click", async ()=>{
+  try{ await navigator.clipboard.writeText(state.briefMD); toast("Markdown copied to clipboard"); }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=state.briefMD; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); toast("Markdown copied");
+  }
+});
+$("#btnDownload").addEventListener("click", ()=>{
+  const blob = new Blob([state.briefMD], {type:"text/markdown"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ai-transformation-brief.md";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("Brief downloaded");
+});
+
+/* ---------------- reset ---------------- */
+$("#btnReset").addEventListener("click", ()=>{
+  state.running=false; state.stage="strategist"; state.briefMD=""; state.results=null;
+  state.decisions=[]; state.revision=1; state.approved=false; state.rejected=false;
+  state.modelsInUse={};
+  autoAssignModels(); renderHub(); renderAudit();
+  $("#orchConsole").innerHTML=""; $("#planChips").innerHTML="";
+  resetTracks();
+  $("#briefDoc").innerHTML="";
+  $("#briefStamp").className="stamp";
+  $("#signWrap").style.display="none"; $("#fbWrap").classList.remove("show");
+  ["#btnApprove","#btnChanges","#btnReject"].forEach(s=>$(s).disabled=false);
+  setStage("strategist");
+  $("#fGoal").focus();
+  toast("New run — pipeline reset");
+});
+
+/* ---------------- settings UI ---------------- */
+function openSettings(){
+  $("input[name=mode][value='"+settings.mode+"']").checked = true;
+  $("#sGrokKey").value = settings.grokKey; $("#sGrokModel").value = settings.grokModel;
+  $("#sMsToken").value = settings.msToken; $("#sMsModel").value = settings.msModel;
+  $("#settingsOverlay").classList.add("show");
+}
+$("#btnSettings").addEventListener("click", openSettings);
+$("#btnSettingsCancel").addEventListener("click", ()=> $("#settingsOverlay").classList.remove("show"));
+$("#settingsOverlay").addEventListener("click", e=>{ if(e.target===$("#settingsOverlay")) $("#settingsOverlay").classList.remove("show"); });
+$("#btnSettingsSave").addEventListener("click", ()=>{
+  settings.mode = $("input[name=mode]:checked").value;
+  settings.grokKey = $("#sGrokKey").value.trim();
+  settings.grokModel = $("#sGrokModel").value.trim() || DEFAULT_SETTINGS.grokModel;
+  settings.msToken = $("#sMsToken").value.trim();
+  settings.msModel = $("#sMsModel").value.trim() || DEFAULT_SETTINGS.msModel;
+  state.mode = settings.mode;
+  saveSettings();
+  $("#settingsOverlay").classList.remove("show");
+  toast("Settings saved");
+});
+
+/* ---------------- init ---------------- */
+state.mode = settings.mode;
+autoAssignModels();
+renderHub();
+renderAudit();
+applyModeChip();
+setStage("strategist");
+</script>
+</body>
+</html>

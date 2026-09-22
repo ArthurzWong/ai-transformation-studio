@@ -1,0 +1,13 @@
+{
+  "name": "ai-transformation-studio",
+  "version": "1.0.0",
+  "description": "Blueprint pipeline: Human Strategist → Grok orchestrator → Web/Files/Business tracks → ModelScope hub → Transformation Brief → Human Approval. Zero-dependency Node.js + SQLite.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "license": "MIT"
+}

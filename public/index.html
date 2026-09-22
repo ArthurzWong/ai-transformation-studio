@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Transformation Studio</title>
+<style>
+:root{
+  --paper:#f7f6f2; --surface:#ffffff; --surface2:#efede6;
+  --line:#e3e0d6; --line2:#d6d2c4;
+  --ink:#26251f; --muted:#77746a; --faint:#a4a196;
+  --accent:#5e7d66; --accent-deep:#3f5a48; --accent-soft:#e6ece4;
+  --gold:#b98a2e; --err:#b0563f; --ok:#5e7d66;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(38,37,31,.04), 0 6px 24px rgba(38,37,31,.06);
+  --shadow-lg:0 2px 6px rgba(38,37,31,.06), 0 18px 48px rgba(38,37,31,.10);
+  --serif:"Source Han Serif SC","Songti SC","Noto Serif",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(94,125,102,.25)}
+a{color:var(--accent-deep)}
+
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 26px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40;background:rgba(247,246,242,.88);backdrop-filter:blur(10px)}
+.logo{display:flex;align-items:center;gap:11px}
+.logo .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,#6d8c74,#4c6655);display:grid;place-items:center;color:#f7f6f2;font-weight:800;font-size:13px;box-shadow:var(--shadow)}
+.logo .wordmark{font-weight:700;font-size:15px}
+.logo .sub{font-size:11px;color:var(--muted)}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--muted);font-size:12.5px}
+.chip .led{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.chip.live .led{background:var(--accent)}
+.chip.demo .led{background:var(--gold)}
+.chip.run .led{background:var(--accent);animation:pulse 1.1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:9px 18px;font-weight:600;font-size:14px;transition:.15s}
+.btn:hover:not(:disabled){border-color:var(--accent);transform:translateY(-1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:linear-gradient(140deg,#6d8c74,#4c6655);color:#f7f6f2;border:none;box-shadow:0 4px 14px rgba(76,102,85,.35)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--err);border-color:rgba(176,86,63,.35)}
+.btn.ok{color:var(--ok);border-color:rgba(94,125,102,.4)}
+.btn:focus-visible,.field :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.layout{display:grid;grid-template-columns:280px 1fr;gap:22px;padding:22px 26px 70px;max-width:1480px;margin:0 auto}
+@media (max-width:1000px){
+  .layout{grid-template-columns:1fr}
+  .rail{position:static}
+  .rail .stages{display:flex;overflow-x:auto;gap:10px;padding-bottom:4px}
+  .rail .conn,.rail .branches,.rail .hubnode{display:none}
+  .rail .node{min-width:150px;flex:0 0 auto}
+}
+
+.rail{position:sticky;top:78px;align-self:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;box-shadow:var(--shadow)}
+.rail h3{margin:0 0 12px;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint)}
+.rail .stages{display:flex;flex-direction:column}
+.node{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid transparent;transition:.2s;cursor:pointer}
+.node:hover{border-color:var(--line2);background:var(--surface2)}
+.node .st{width:22px;height:22px;border-radius:50%;flex:0 0 auto;border:2px solid var(--line2);background:var(--surface);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);transition:.2s}
+.node .lbl{font-size:13px;font-weight:600;line-height:1.35}
+.node .sub{font-size:11px;color:var(--faint)}
+.node[data-state="done"] .st{background:var(--accent);border-color:var(--accent);color:#fff}
+.node[data-state="active"]{border-color:rgba(94,125,102,.45);background:var(--accent-soft)}
+.node[data-state="active"] .st{border-color:var(--accent);color:var(--accent);animation:pulse 1.3s infinite}
+.node[data-state="locked"]{opacity:.5}
+.conn{width:2px;height:12px;background:var(--line2);margin-left:21px}
+.branches{display:flex;gap:6px;margin-left:10px}
+.branches .bline{flex:1;height:2px;background:var(--line2);margin-top:11px}
+.hubnode{margin:4px 0 4px 10px;font-size:11px;color:var(--faint);text-align:center}
+
+main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 26px;box-shadow:var(--shadow);scroll-margin-top:86px;transition:.25s}
+.panel.active{border-color:rgba(94,125,102,.5);box-shadow:var(--shadow-lg)}
+.panel.locked{opacity:.45}
+.panel h2{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:10px}
+.panel h2 .n{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent-deep);display:grid;place-items:center;font-size:12.5px;font-weight:800;flex:0 0 auto}
+.panel .desc{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+.pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.5px;text-transform:uppercase;border:1px solid var(--line2);color:var(--faint);margin-left:auto}
+.pill.run{color:var(--accent-deep);border-color:rgba(94,125,102,.4);animation:pulse 1.3s infinite}
+.pill.done{color:var(--ok);border-color:rgba(94,125,102,.45)}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field textarea,.field input{width:100%;background:var(--surface2);border:1px solid var(--line2);border-radius:10px;color:var(--ink);padding:10px 13px;font:inherit;resize:vertical}
+.field textarea{min-height:86px}
+.field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.frow{grid-template-columns:1fr}}
+.err-msg{color:var(--err);font-size:13px;margin-top:8px;display:none}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px}
+.presets button{font-size:12.5px;padding:6px 13px;border-radius:999px;border:1px dashed var(--line2);background:transparent;color:var(--muted)}
+.presets button:hover{border-color:var(--accent);color:var(--accent-deep)}
+
+.console{background:#2a2d28;border-radius:12px;padding:16px 18px;font:12.5px/1.75 var(--mono);max-height:250px;overflow-y:auto;white-space:pre-wrap;color:#d8dbc9}
+.console .t{color:#7c8272;margin-right:9px}
+.console .ok{color:#a3c2a0}
+.console .hl{color:#c9d8b8}
+.plan-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.plan-chips .pc{font-size:12px;padding:6px 12px;border-radius:8px;background:var(--accent-soft);border:1px solid rgba(94,125,102,.3);color:var(--accent-deep)}
+
+.tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:1100px){.tracks{grid-template-columns:1fr}}
+.track{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.track .thead{display:flex;align-items:center;gap:9px}
+.track .ticon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:var(--accent-soft);border:1px solid rgba(94,125,102,.25)}
+.track .tname{font-weight:700;font-size:14px}
+.track .trole{font-size:11px;color:var(--faint)}
+.track .pill{margin-left:auto}
+.bar{height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8ba892,#5e7d66);transition:width .4s}
+.findings{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:13px;color:#43423a}
+.findings li{padding-left:15px;position:relative}
+.findings li::before{content:"▸";position:absolute;left:0;color:var(--accent)}
+.findings li.rev{background:var(--accent-soft);border-radius:7px;padding:6px 8px 6px 24px}
+.findings li.rev::before{color:var(--gold)}
+.badge{align-self:flex-start;font-size:9.5px;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:5px;margin-top:10px}
+.badge.demo{background:rgba(185,138,46,.1);color:var(--gold);border:1px solid rgba(185,138,46,.3)}
+.badge.live{background:rgba(94,125,102,.12);color:var(--accent-deep);border:1px solid rgba(94,125,102,.35)}
+
+.hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px}
+.cat{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+.cat h4{margin:0 0 10px;font-size:12.5px}
+.model{display:flex;align-items:flex-start;gap:9px;padding:8px;border-radius:9px;cursor:pointer}
+.model:hover{background:#fff}
+.model input{margin-top:3px;accent-color:var(--accent)}
+.model .mid{font-size:12px;font-weight:600;font-family:var(--mono);word-break:break-all}
+.model .mdesc{font-size:11px;color:var(--faint)}
+.model .use{margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.8px;padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent-deep);flex:0 0 auto}
+
+.brief-doc{background:#fdfcf9;border:1px solid var(--line);border-radius:12px;padding:30px 34px;max-height:620px;overflow-y:auto;font-family:var(--serif);font-size:14.5px;line-height:1.75}
+.brief-doc h1{font-size:21px;margin:0 0 6px}
+.brief-doc h2{font-size:16px;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.brief-doc h3{font-size:14px;margin:14px 0 6px;color:var(--accent-deep)}
+.brief-doc p{margin:8px 0;color:#3a3930}
+.brief-doc ul{padding-left:20px;margin:6px 0}
+.brief-doc li{margin:4px 0;color:#3a3930}
+.brief-doc table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px;font-family:var(--sans)}
+.brief-doc th{background:var(--accent-soft);color:var(--accent-deep)}
+.brief-doc th,.brief-doc td{border:1px solid var(--line2);padding:6px 11px;text-align:left}
+.brief-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.stamp{display:none;align-items:center;gap:10px;margin-top:16px;padding:12px 18px;border-radius:12px;font-weight:700}
+.stamp.approved{display:flex;border:1px solid rgba(94,125,102,.5);background:var(--accent-soft);color:var(--accent-deep)}
+.stamp.rejected{display:flex;border:1px solid rgba(176,86,63,.5);background:rgba(176,86,63,.07);color:var(--err)}
+.stamp .big{font-size:20px}
+
+.approval-actions{display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 16px}
+.audit{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.audit li{font-size:12.5px;color:var(--muted);padding:9px 13px;border:1px solid var(--line);border-radius:9px;background:var(--paper);display:flex;gap:10px;flex-wrap:wrap}
+.audit .at{font-family:var(--mono);color:var(--faint);font-size:11px}
+.audit .who{color:var(--accent-deep);font-weight:700}
+.fb-wrap{display:none;margin-bottom:16px}
+.fb-wrap.show{display:block}
+
+.overlay{position:fixed;inset:0;background:rgba(38,37,31,.35);backdrop-filter:blur(4px);display:none;place-items:center;z-index:100;padding:20px}
+.overlay.show{display:grid}
+.modal{width:min(560px,100%);max-height:85vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:26px;box-shadow:var(--shadow-lg)}
+.modal h3{margin:0 0 4px}
+.modal p.hint{font-size:12.5px;color:var(--muted);margin:4px 0 16px}
+.modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.key-note{font-size:11.5px;color:var(--faint);margin-top:8px;line-height:1.6}
+.radio-row{display:flex;gap:16px;margin-bottom:14px}
+.radio-row label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
+.radio-row input{accent-color:var(--accent)}
+.masked{font-size:12px;color:var(--faint);margin-top:4px}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper);cursor:pointer;transition:.15s}
+.history-item:hover{border-color:var(--accent)}
+.history-item .hgoal{flex:1;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-item .hmeta{font-size:11.5px;color:var(--faint);white-space:nowrap}
+.status-tag{font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 9px;border-radius:999px;text-transform:uppercase}
+.status-tag.awaiting_approval{background:var(--accent-soft);color:var(--accent-deep)}
+.status-tag.approved{background:rgba(94,125,102,.18);color:var(--accent-deep)}
+.status-tag.rejected{background:rgba(176,86,63,.12);color:var(--err)}
+.status-tag.running{background:rgba(185,138,46,.12);color:var(--gold)}
+
+footer{padding:18px 26px 30px;color:var(--faint);font-size:12px;text-align:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font-size:13px;z-index:200;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="mark">AI</div>
+    <div>
+      <div class="wordmark">AI Transformation Studio</div>
+      <div class="sub">Orchestrated by Grok · Powered by ModelScope</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="chip demo" id="modeChip"><span class="led"></span><span id="modeLabel">Demo mode</span></div>
+  <div class="chip" id="runChip"><span class="led"></span><span id="runLabel">Idle</span></div>
+  <button class="btn ghost" id="btnHistory">🕘 Runs</button>
+  <button class="btn ghost" id="btnSettings">⚙ Settings</button>
+  <button class="btn primary" id="btnNewRun">＋ New run</button>
+</header>
+
+<div class="layout">
+
+  <aside class="rail" aria-label="Pipeline map">
+    <h3>Pipeline</h3>
+    <div class="stages">
+      <div class="node" data-stage="strategist" data-state="active">
+        <div class="st">1</div>
+        <div><div class="lbl">Human Strategist</div><div class="sub">Goal · context · criteria</div></div>
+      </div>
+      <div class="conn"></div>
+      <div class="node" data-stage="orchestrator" data-state="locked">
+        <div class="st">2</div>
+        <div><div class="lbl">Grok Bot</div><div class="sub">Orchestrator · dispatch</div></div>
+      </div>
+      <div class="conn"></div>
+      <div class="branches"><div class="bline"></div><div class="bline"></div><div class="bline"></div></div>
+      <div class="node" data-stage="tracks" data-state="locked">
+        <div class="st">3</div>
+        <div><div class="lbl">Research Tracks</div><div class="sub">Web · Files · Business</div></div>
+      </div>
+      <div class="conn"></div>
+      <div class="hubnode">▼</div>
+      <div class="node" data-stage="models" data-state="locked">
+        <div class="st">4</div>
+        <div><div class="lbl">ModelScope</div><div class="sub">Model hub selection</div></div>
+      </div>
+      <div class="conn"></div>
+      <div class="node" data-stage="brief" data-state="locked">
+        <div class="st">5</div>
+        <div><div class="lbl">Brief</div><div class="sub">Transformation dossier</div></div>
+      </div>
+      <div class="conn"></div>
+      <div class="node" data-stage="approval" data-state="locked">
+        <div class="st">6</div>
+        <div><div class="lbl">Human Approval</div><div class="sub">Sign-off gate</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+
+    <section class="panel active" id="p-strategist">
+      <h2><span class="n">1</span> Human Strategist</h2>
+      <p class="desc">Define the transformation goal. The orchestrator decomposes this intent; every run is persisted to the server database.</p>
+      <div class="presets" aria-label="Example briefs">
+        <button data-preset="invoice">📐 Invoice processing automation</button>
+        <button data-preset="support">🎧 Customer support copilot</button>
+        <button data-preset="field">🔧 Field-ops knowledge assistant</button>
+      </div>
+      <div class="field">
+        <label for="fGoal">Transformation goal *</label>
+        <textarea id="fGoal" placeholder="e.g. Automate accounts-payable invoice handling to cut processing time by 60% and eliminate manual data entry errors."></textarea>
+      </div>
+      <div class="frow">
+        <div class="field">
+          <label for="fIndustry">Industry / context</label>
+          <input id="fIndustry" placeholder="e.g. Manufacturing, 800 employees, EU operations">
+        </div>
+        <div class="field">
+          <label for="fConstraints">Constraints</label>
+          <input id="fConstraints" placeholder="e.g. On-prem preferred, data stays in-region, 6-month budget">
+        </div>
+      </div>
+      <div class="field">
+        <label for="fCriteria">Success criteria (separate with ·)</label>
+        <input id="fCriteria" placeholder="e.g. Cost per invoice &lt; €1.20 · &gt;99% accuracy · go-live in one quarter">
+      </div>
+      <div class="err-msg" id="goalErr">A transformation goal is required before the pipeline can run.</div>
+      <button class="btn primary" id="btnRun">▶ Run pipeline</button>
+    </section>
+
+    <section class="panel locked" id="p-orchestrator">
+      <h2><span class="n">2</span> Grok Bot — Orchestrator</h2>
+      <p class="desc">Decomposes intent, dispatches the three tracks, arbitrates ModelScope selection.</p>
+      <div class="console" id="orchConsole" aria-live="polite"></div>
+      <div class="plan-chips" id="planChips"></div>
+    </section>
+
+    <section class="panel locked" id="p-tracks">
+      <h2><span class="n">3</span> Research Tracks <span class="pill" id="tracksPill">pending</span></h2>
+      <p class="desc">Three workers run in parallel on the server; every finding is persisted.</p>
+      <div class="tracks">
+        <div class="track" id="track-web">
+          <div class="thead"><div class="ticon">🌐</div><div><div class="tname">Web Research</div><div class="trole">Market · tools · benchmarks</div></div><span class="pill">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+        <div class="track" id="track-files">
+          <div class="thead"><div class="ticon">📁</div><div><div class="tname">Files</div><div class="trole">Documents · data · extraction</div></div><span class="pill">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+        <div class="track" id="track-business">
+          <div class="thead"><div class="ticon">🧭</div><div><div class="tname">Business Logic</div><div class="trole">Process · ROI · risks</div></div><span class="pill">queued</span></div>
+          <div class="bar"><i></i></div>
+          <ul class="findings"></ul>
+        </div>
+      </div>
+      <div class="badge demo" id="trackSourceBadge" style="display:none"></div>
+    </section>
+
+    <section class="panel locked" id="p-models">
+      <h2><span class="n">4</span> ModelScope — Model Hub</h2>
+      <p class="desc">Orchestrator pre-selects slots (IN USE). Override any slot, then recompile the brief — overrides persist to the database.</p>
+      <div class="hub" id="hubGrid"></div>
+      <div style="margin-top:14px"><button class="btn primary" id="btnRecompile">🔁 Recompile brief with selections</button></div>
+    </section>
+
+    <section class="panel locked" id="p-brief">
+      <h2><span class="n">5</span> AI Transformation Brief</h2>
+      <p class="desc">Consolidated dossier routed to human approval. Copy or download the markdown source.</p>
+      <div class="brief-doc" id="briefDoc"><p style="color:var(--faint)">The brief will appear here once the pipeline reaches stage 5.</p></div>
+      <div class="brief-actions">
+        <button class="btn" id="btnCopy">⧉ Copy markdown</button>
+        <button class="btn" id="btnDownload">⬇ Download .md</button>
+      </div>
+      <div class="stamp" id="briefStamp"><span class="big">✓</span><span id="briefStampText"></span></div>
+    </section>
+
+    <section class="panel locked" id="p-approval">
+      <h2><span class="n">6</span> Human Approval</h2>
+      <p class="desc">The pipeline halts here until a human decides. All decisions are written to the audit trail.</p>
+      <div class="fb-wrap" id="fbWrap">
+        <div class="field">
+          <label for="fFeedback">Reviewer feedback</label>
+          <textarea id="fFeedback" placeholder="What should the orchestrator change before the next revision?"></textarea>
+        </div>
+        <button class="btn primary" id="btnSubmitFeedback" style="margin-bottom:16px">↩ Send to orchestrator for revision</button>
+      </div>
+      <div class="approval-actions">
+        <button class="btn ok" id="btnApprove">✓ Approve brief</button>
+        <button class="btn" id="btnChanges">↩ Request changes</button>
+        <button class="btn danger" id="btnReject">✕ Reject</button>
+      </div>
+      <div class="field" id="signWrap" style="display:none;max-width:340px">
+        <label for="fSigner">Sign-off name</label>
+        <input id="fSigner" placeholder="Your name">
+        <button class="btn primary" id="btnSign" style="margin-top:10px">🖊 Sign &amp; close run</button>
+      </div>
+      <h3 style="font-size:13px;color:var(--muted);margin:18px 0 10px">Audit trail</h3>
+      <ul class="audit" id="auditList"></ul>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  AI Transformation Studio · Human Strategist → Grok orchestrator → Web / Files / Business logic → ModelScope → Brief → Human approval · Runs persist in SQLite; demo data is simulated, connect provider keys in Settings for live calls.
+</footer>
+
+<div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="modal">
+    <h3>⚙ Settings</h3>
+    <p class="hint">Keys are stored server-side in the SQLite settings table and are never returned in full by the API (masked, last 4 chars only). Provider calls are made by the server, so no browser CORS issues.</p>
+    <div class="radio-row" role="radiogroup" aria-label="Run mode">
+      <label><input type="radio" name="mode" value="demo"> Demo (simulated)</label>
+      <label><input type="radio" name="mode" value="live"> Live (API calls)</label>
+    </div>
+    <div class="field">
+      <label for="sGrokKey">xAI (Grok) API key</label>
+      <input id="sGrokKey" type="password" placeholder="xai-… (leave blank to keep existing)">
+      <div class="masked" id="grokKeyMasked"></div>
+      <button class="btn ghost" id="btnClearGrokKey" style="font-size:12px;margin-top:6px">Clear stored key</button>
+    </div>
+    <div class="field">
+      <label for="sGrokModel">Grok model id</label>
+      <input id="sGrokModel" placeholder="grok-4-fast">
+    </div>
+    <div class="field">
+      <label for="sMsToken">ModelScope API token</label>
+      <input id="sMsToken" type="password" placeholder="ms-… (leave blank to keep existing)">
+      <div class="masked" id="msTokenMasked"></div>
+      <button class="btn ghost" id="btnClearMsToken" style="font-size:12px;margin-top:6px">Clear stored token</button>
+    </div>
+    <div class="field">
+      <label for="sMsModel">ModelScope default chat model</label>
+      <input id="sMsModel" placeholder="Qwen/Qwen2.5-72B-Instruct">
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="btnSettingsCancel">Cancel</button>
+      <button class="btn primary" id="btnSettingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="historyOverlay" role="dialog" aria-modal="true" aria-label="Runs history">
+  <div class="modal" style="width:min(680px,100%)">
+    <h3>🕘 Runs history</h3>
+    <p class="hint">Every run is stored in SQLite and retrievable after restart. Click a run to load it.</p>
+    <div class="history-list" id="historyList"><p style="color:var(--faint);font-size:13px">Loading…</p></div>
+    <div class="actions"><button class="btn ghost" id="btnHistoryClose">Close</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

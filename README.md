@@ -1,5 +1,7 @@
 # AI Transformation Studio
 
+**Live demo:** <https://ai-transformation-studio.vercel.app> · **Source:** <https://github.com/ArthurzWong/ai-transformation-studio>
+
 A working client–server web app implementing this blueprint pipeline, stage for stage:
 
 ```

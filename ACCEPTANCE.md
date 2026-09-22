@@ -58,4 +58,12 @@ Follow only README "Quick start": install Node ≥ 22.5 → `cd ai-transformatio
 | D6 GET brief.md | PASS (3,835 bytes, all sections) |
 | D7 POST decision approve | PASS — HTTP 200, status approved, signer persisted, audit rows present (verified via direct call after a test-harness property-access bug produced a false negative) |
 
+## F. GitHub publication & git-connected deployment (2026-09-22)
+
+- Repo: <https://github.com/ArthurzWong/ai-transformation-studio> (public, `main`, 5 commits)
+- Repo homepage set to the live deployment; README carries both live-demo and source links (verified via GitHub API: `homepage: https://ai-transformation-studio.vercel.app`)
+- Vercel project connected to the GitHub repo (`vercel git connect`) — pushes to `main` auto-deploy; verified by pushing the documentation commit and observing the triggered production deployment
+- Final live checks on the git-connected build: index PASS · README link PASS · pipeline (12 findings / 6 slots / 1 brief) PASS · brief.md PASS · approve PASS
+- Persistent local instance unchanged: http://127.0.0.1:8788 (`data/studio.db`)
+
 **Known deployment limitation (documented in README):** Vercel's serverless filesystem is read-only except per-instance `/tmp`, so the SQLite database is transient there — runs reset on cold starts. The persistent deployment (surviving restarts, full audit retention) is `node server.js` on a long-lived host. Git: commit `683846f` (app) + deployment-verification docs commit; project `ai-transformation-studio` under scope `arthurzwong`.
